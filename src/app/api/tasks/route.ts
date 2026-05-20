@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (status) query = query.where('status', '==', status);
 
     const snapshot = await query.limit(100).get();
-    let tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    let tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as any));
 
     // Filter by today if requested
     if (today) {

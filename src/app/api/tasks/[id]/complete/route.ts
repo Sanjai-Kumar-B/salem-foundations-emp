@@ -10,12 +10,12 @@ const TASKS_COL = 'tasks';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAuth(request);
   if (isErrorResponse(session)) return session;
 
-  const doc = await adminDb.collection(TASKS_COL).doc(params.id).get();
+  const doc = await adminDb.collection(TASKS_COL).doc(((await params).id)).get();
   if (!doc.exists) {
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
@@ -28,7 +28,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden: not your task' }, { status: 403 });
   }
 
-  await adminDb.collection(TASKS_COL).doc(params.id).update({
+  await adminDb.collection(TASKS_COL).doc(((await params).id)).update({
     status: 'COMPLETED',
     completedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -36,3 +36,4 @@ export async function PATCH(
 
   return NextResponse.json({ success: true });
 }
+

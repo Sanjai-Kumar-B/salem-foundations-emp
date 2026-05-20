@@ -11,12 +11,12 @@ const LEADS_COL = 'leads';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAuth(request);
   if (isErrorResponse(session)) return session;
 
-  const doc = await adminDb.collection(LEADS_COL).doc(params.id).get();
+  const doc = await adminDb.collection(LEADS_COL).doc(((await params).id)).get();
   if (!doc.exists) {
     return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
   }
@@ -44,14 +44,14 @@ export async function PATCH(
   }
 
   updates.updatedAt = FieldValue.serverTimestamp();
-  await adminDb.collection(LEADS_COL).doc(params.id).update(updates);
+  await adminDb.collection(LEADS_COL).doc(((await params).id)).update(updates);
 
   return NextResponse.json({ success: true });
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAuth(request);
   if (isErrorResponse(session)) return session;
@@ -64,20 +64,21 @@ export async function DELETE(
     );
   }
 
-  if (!params.id) {
+  if (!((await params).id)) {
     return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 });
   }
 
   try {
-    const doc = await adminDb.collection(LEADS_COL).doc(params.id).get();
+    const doc = await adminDb.collection(LEADS_COL).doc(((await params).id)).get();
     if (!doc.exists) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
-    await adminDb.collection(LEADS_COL).doc(params.id).delete();
-    return NextResponse.json({ success: true, id: params.id });
+    await adminDb.collection(LEADS_COL).doc(((await params).id)).delete();
+    return NextResponse.json({ success: true, id: ((await params).id) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete lead';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

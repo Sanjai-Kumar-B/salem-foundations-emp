@@ -12,17 +12,17 @@ const EMPLOYEES_COL = 'employees';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAuth(request);
   if (isErrorResponse(session)) return session;
 
   // COUNSELLOR can only read their own profile
-  if (session.role === 'COUNSELLOR' && session.uid !== params.id) {
+  if (session.role === 'COUNSELLOR' && session.uid !== ((await params).id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const doc = await adminDb.collection(EMPLOYEES_COL).doc(params.id).get();
+  const doc = await adminDb.collection(EMPLOYEES_COL).doc(((await params).id)).get();
   if (!doc.exists) {
     return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
   }
@@ -32,7 +32,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAdmin(request);
   if (isErrorResponse(session)) return session;
@@ -51,22 +51,23 @@ export async function PATCH(
 
   updates.updatedAt = FieldValue.serverTimestamp();
 
-  await adminDb.collection(EMPLOYEES_COL).doc(params.id).update(updates);
+  await adminDb.collection(EMPLOYEES_COL).doc(((await params).id)).update(updates);
   return NextResponse.json({ success: true });
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await requireAdmin(request);
   if (isErrorResponse(session)) return session;
 
   // Soft delete — set isActive: false (preserves history)
-  await adminDb.collection(EMPLOYEES_COL).doc(params.id).update({
+  await adminDb.collection(EMPLOYEES_COL).doc(((await params).id)).update({
     isActive: false,
     updatedAt: FieldValue.serverTimestamp(),
   });
 
   return NextResponse.json({ success: true });
 }
+

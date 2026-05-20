@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     const snapshot = await query.limit(200).get();
     const leads = snapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .map((doc) => ({ id: doc.id, ...doc.data() } as any))
       .sort((a, b) => {
         const timeA = (a.createdAt as any)?.toMillis?.() ?? 0;
         const timeB = (b.createdAt as any)?.toMillis?.() ?? 0;
