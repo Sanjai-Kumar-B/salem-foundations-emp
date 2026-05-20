@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import MobileDock from '@/components/counsellor/MobileDock';
 import {
     LayoutDashboard,
     Users,
@@ -25,17 +26,17 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Command Center', href: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Employees', href: '/admin/employees', icon: <Users size={20} /> },
-    { name: 'Leads', href: '/admin/leads', icon: <UserPlus size={20} /> },
-    { name: 'Assignments', href: '/admin/assignments', icon: <ClipboardList size={20} /> },
-    { name: 'Reports', href: '/admin/reports', icon: <BarChart3 size={20} /> },
+    { name: 'Leads Workspace', href: '/admin/leads', icon: <UserPlus size={20} /> },
+    { name: 'Assignment Center', href: '/admin/assignments', icon: <ClipboardList size={20} /> },
+    { name: 'Analytics Center', href: '/admin/analytics', icon: <BarChart3 size={20} /> },
 ];
 
 const counsellorNavItems: NavItem[] = [
     { name: 'Dashboard', href: '/counsellor/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'New Leads', href: '/counsellor/new-leads', icon: <Phone size={20} /> },
-    { name: 'Follow-Ups', href: '/counsellor/follow-ups', icon: <CalendarCheck size={20} /> },
+    { name: 'Lead Workspace', href: '/counsellor/workspace', icon: <Phone size={20} /> },
+    { name: "Today's Calls", href: '/counsellor/todays-calls', icon: <CalendarCheck size={20} /> },
 ];
 
 interface SidebarProps {
@@ -159,13 +160,48 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+
+    const activeTab =
+        pathname?.includes('/todays-calls') ? 'calls' :
+        pathname?.includes('/follow-ups') ? 'followups' :
+        pathname?.includes('/workspace') ? 'queue' :
+        'calls';
+
+    const handleDockChange = (tab: 'queue' | 'calls' | 'followups' | 'whatsapp') => {
+        if (tab === 'queue') {
+            router.push('/counsellor/workspace');
+            return;
+        }
+
+        if (tab === 'calls') {
+            router.push('/counsellor/todays-calls');
+            return;
+        }
+
+        if (tab === 'followups') {
+            router.push('/counsellor/follow-ups');
+            return;
+        }
+
+        router.push('/counsellor/workspace');
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Sidebar role={role} />
             <main className="lg:pl-64">
-                <div className="pt-16 lg:pt-0">
+                <div className="pt-16 pb-28 lg:pt-0 lg:pb-0">
                     {children}
                 </div>
+                {role === 'COUNSELLOR' && (
+                    <MobileDock
+                        active={activeTab as 'queue' | 'calls' | 'followups' | 'whatsapp'}
+                        onChange={handleDockChange}
+                        onPrimaryAction={() => router.push('/counsellor/todays-calls')}
+                    />
+                )}
             </main>
         </div>
     );

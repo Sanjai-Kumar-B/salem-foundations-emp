@@ -1,222 +1,169 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
-import { Card, Badge, LoadingSpinner } from '@/components/ui';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Badge, Button, Card, LoadingSpinner } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import {
-    getTodaysTasks,
-    getOverdueTasks,
-    getTodaysCallCount,
-    getLeadsByEmployee,
-} from '@/lib/firestore';
-import { Task } from '@/types';
-import { getDueDateLabel } from '@/lib/utils';
-import {
-    Phone,
-    CalendarCheck,
-    AlertTriangle,
-    Target,
-    ArrowRight,
-    Clock,
-} from 'lucide-react';
+import { getCallOutcomesByEmployee, getLeadsByEmployee, getOverdueTasks, getTodaysCallCount, getTodaysTasks } from '@/lib/firestore';
+import { getNextLead } from '@/lib/nextBestAction';
+import { formatDate } from '@/lib/utils';
+import { AlertTriangle, CalendarCheck, CheckCircle2, ChevronRight, Phone } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function CounsellorDashboard() {
-    const { employee } = useAuth();
-    const [todaysTasks, setTodaysTasks] = useState<Task[]>([]);
-    const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
-    const [callsMade, setCallsMade] = useState(0);
-    const [newLeadsCount, setNewLeadsCount] = useState(0);
-    const [followUpsCount, setFollowUpsCount] = useState(0);
-    const [loading, setLoading] = useState(true);
+  const { employee } = useAuth();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [callsMade, setCallsMade] = useState(0);
+  const [newLeadsCount, setNewLeadsCount] = useState(0);
+  const [followUpsCount, setFollowUpsCount] = useState(0);
+  const [todaysTasksCount, setTodaysTasksCount] = useState(0);
+  const [overdueTasksCount, setOverdueTasksCount] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<string[]>([]);
+  const [nextLeadName, setNextLeadName] = useState<string | null>(null);
+  const [nextLeadReason, setNextLeadReason] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (employee) {
-            loadData();
-        }
-    }, [employee]);
+  useEffect(() => {
+    const load = async () => {
+      if (!employee) return;
+      setLoading(true);
+      try {
+        const [todayTasks, overdue, calls, allAssigned, allOutcomes] = await Promise.all([
+          getTodaysTasks(employee.id),
+          getOverdueTasks(employee.id),
+          getTodaysCallCount(employee.id),
+          getLeadsByEmployee(employee.id),
+          getCallOutcomesByEmployee(employee.id),
+        ]);
 
-    const loadData = async () => {
-        if (!employee) return;
+        setTodaysTasksCount(todayTasks.length);
+        setOverdueTasksCount(overdue.length);
+        setCallsMade(calls);
+        setNewLeadsCount(allAssigned.filter((lead) => lead.status === 'NEW').length);
+        setFollowUpsCount(allAssigned.filter((lead) => !!lead.nextFollowUp && lead.status !== 'CONVERTED').length);
 
-        try {
-            const [today, overdue, calls, bulkLeads, appLeads] = await Promise.all([
-                getTodaysTasks(employee.id),
-                getOverdueTasks(employee.id),
-                getTodaysCallCount(employee.id),
-                getLeadsByEmployee(employee.id, 'BULK'),
-                getLeadsByEmployee(employee.id, 'FOLLOW_UP'),
-            ]);
+        const recommendation = getNextLead(allAssigned);
+        setNextLeadName(recommendation.lead?.name ?? null);
+        setNextLeadReason(recommendation.reason ?? null);
 
-            setTodaysTasks(today);
-            setOverdueTasks(overdue);
-            setCallsMade(calls);
-            setNewLeadsCount(bulkLeads.filter((l) => l.currentStage === 'NEW').length);
-            setFollowUpsCount(appLeads.length);
-        } catch (error) {
-            console.error('Error loading dashboard data:', error);
-        } finally {
-            setLoading(false);
-        }
+        setRecentActivity(
+          allOutcomes
+            .slice(0, 5)
+            .map((outcome) => `${outcome.nextAction} at ${formatDate(outcome.createdAt.toDate())}`)
+        );
+      } catch (error) {
+        console.error('Failed to load counsellor dashboard', error);
+        toast.error('Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const callTarget = employee?.dailyCallTarget || 30;
-    const callProgress = Math.min((callsMade / callTarget) * 100, 100);
+    load();
+  }, [employee]);
 
-    if (loading) {
-        return (
-            <div className="p-6 flex items-center justify-center min-h-[400px]">
-                <LoadingSpinner size="lg" />
-            </div>
-        );
-    }
+  const callTarget = employee?.dailyCallTarget || 25;
+  const progressPercent = useMemo(() => {
+    return Math.min(100, Math.round((callsMade / callTarget) * 100));
+  }, [callTarget, callsMade]);
 
+  if (loading) {
     return (
-        <div className="p-4 md:p-6">
-            {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-gray-500">Welcome, {employee?.name}</p>
-            </div>
-
-            {/* Call Progress */}
-            <Card className="mb-6">
-                <div className="flex items-center gap-4 mb-4">
-                    <div className="p-3 bg-blue-50 rounded-lg">
-                        <Target className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-sm text-gray-500">Today&apos;s Call Target</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                            {callsMade} / {callTarget}
-                        </p>
-                    </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                        className="bg-blue-600 h-3 rounded-full transition-all duration-500"
-                        style={{ width: `${callProgress}%` }}
-                    />
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                    {callTarget - callsMade > 0
-                        ? `${callTarget - callsMade} calls remaining`
-                        : 'Target achieved! 🎉'}
-                </p>
-            </Card>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-                <Link href="/counsellor/new-leads">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-indigo-50 rounded-lg">
-                                <Phone className="w-5 h-5 text-indigo-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">New Leads</p>
-                                <p className="text-xl font-bold text-gray-900">{newLeadsCount}</p>
-                            </div>
-                        </div>
-                    </Card>
-                </Link>
-
-                <Link href="/counsellor/follow-ups">
-                    <Card className="cursor-pointer hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-50 rounded-lg">
-                                <CalendarCheck className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Follow-Ups</p>
-                                <p className="text-xl font-bold text-gray-900">{followUpsCount}</p>
-                            </div>
-                        </div>
-                    </Card>
-                </Link>
-            </div>
-
-            {/* Overdue Alert */}
-            {overdueTasks.length > 0 && (
-                <Card className="mb-6 bg-red-50 border-red-200">
-                    <div className="flex items-center gap-3">
-                        <AlertTriangle className="w-5 h-5 text-red-600" />
-                        <div className="flex-1">
-                            <p className="font-medium text-red-800">
-                                {overdueTasks.length} Overdue Task{overdueTasks.length > 1 ? 's' : ''}
-                            </p>
-                            <p className="text-sm text-red-600">Please complete these immediately</p>
-                        </div>
-                    </div>
-                </Card>
-            )}
-
-            {/* Today's Tasks */}
-            <Card padding="none">
-                <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                    <h2 className="font-semibold text-gray-900">Today&apos;s Tasks</h2>
-                    <Badge variant="info" size="sm">{todaysTasks.length}</Badge>
-                </div>
-
-                {todaysTasks.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500">
-                        <Clock className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                        <p>No tasks scheduled for today</p>
-                    </div>
-                ) : (
-                    <div className="divide-y divide-gray-100">
-                        {todaysTasks.slice(0, 5).map((task) => (
-                            <div key={task.id} className="px-4 py-3 flex items-center gap-3">
-                                <div
-                                    className={`w-2 h-2 rounded-full ${task.status === 'COMPLETED'
-                                        ? 'bg-green-500'
-                                        : task.status === 'OVERDUE'
-                                            ? 'bg-red-500'
-                                            : 'bg-amber-500'
-                                        }`}
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-gray-900 truncate">{task.leadName}</p>
-                                    <p className="text-sm text-gray-500">
-                                        {task.taskType} • {getDueDateLabel(task.dueDate)}
-                                    </p>
-                                </div>
-                                <Badge
-                                    variant={task.pipeline === 'BULK' ? 'info' : 'success'}
-                                    size="sm"
-                                >
-                                    {task.pipeline === 'BULK' ? 'New' : 'Follow-Up'}
-                                </Badge>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </Card>
-
-            {/* Quick Actions */}
-            <div className="mt-6 grid grid-cols-1 gap-3">
-                <Link
-                    href="/counsellor/new-leads"
-                    className="flex items-center justify-between p-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-                >
-                    <div className="flex items-center gap-3">
-                        <Phone className="w-5 h-5" />
-                        <span className="font-medium">Start Calling New Leads</span>
-                    </div>
-                    <ArrowRight className="w-5 h-5" />
-                </Link>
-
-                <Link
-                    href="/counsellor/follow-ups"
-                    className="flex items-center justify-between p-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
-                >
-                    <div className="flex items-center gap-3">
-                        <CalendarCheck className="w-5 h-5" />
-                        <span className="font-medium">Check Follow-Ups</span>
-                    </div>
-                    <ArrowRight className="w-5 h-5" />
-                </Link>
-            </div>
-        </div>
+      <div className="flex min-h-[60vh] items-center justify-center bg-gray-50">
+        <LoadingSpinner size="lg" />
+      </div>
     );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f3f7ff] p-4">
+      <div className="mx-auto max-w-5xl space-y-4">
+        <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Counsellor Dashboard</p>
+          <h1 className="text-2xl font-bold text-slate-900">Hello, {employee?.name ?? 'Counsellor'}</h1>
+          <p className="text-sm text-slate-600">
+            {callsMade}/{callTarget} calls completed today ({progressPercent}%)
+          </p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
+            <div className="h-full rounded-full bg-blue-600" style={{ width: `${progressPercent}%` }} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Calls Today</p>
+            <p className="text-2xl font-bold text-gray-900">{callsMade}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500">New Leads</p>
+            <p className="text-2xl font-bold text-gray-900">{newLeadsCount}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Follow-ups</p>
+            <p className="text-2xl font-bold text-gray-900">{followUpsCount}</p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Overdue Tasks</p>
+            <p className="text-2xl font-bold text-gray-900">{overdueTasksCount}</p>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card className="lg:col-span-2 p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Next Best Action</h2>
+              {nextLeadReason && <Badge variant="info" size="sm">{nextLeadReason}</Badge>}
+            </div>
+            {nextLeadName ? (
+              <>
+                <p className="text-xl font-bold text-gray-900">{nextLeadName}</p>
+                <p className="mt-1 text-sm text-gray-500">Recommended by live queue prioritization</p>
+                <div className="mt-4 flex gap-3">
+                  <Button onClick={() => router.push('/counsellor/workspace')}>
+                    <Phone className="mr-2 h-4 w-4" /> Open Calling Workspace
+                  </Button>
+                  <Button variant="outline" onClick={() => router.push('/counsellor/todays-calls')}>
+                    View Queue <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No active lead in queue.</p>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="mb-3 text-lg font-semibold text-gray-900">Task Summary</h2>
+            <div className="space-y-3 text-sm">
+              <p className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-gray-700"><CalendarCheck className="h-4 w-4 text-blue-600" /> Today&apos;s Tasks</span>
+                <span className="font-semibold">{todaysTasksCount}</span>
+              </p>
+              <p className="flex items-center justify-between">
+                <span className="flex items-center gap-2 text-gray-700"><AlertTriangle className="h-4 w-4 text-amber-600" /> Overdue</span>
+                <span className="font-semibold">{overdueTasksCount}</span>
+              </p>
+            </div>
+          </Card>
+        </div>
+
+        <Card className="p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <CheckCircle2 className="h-5 w-5 text-green-600" /> Recent Activity
+          </h2>
+          {recentActivity.length === 0 ? (
+            <p className="text-sm text-gray-500">No recent call activity.</p>
+          ) : (
+            <ul className="space-y-2">
+              {recentActivity.map((item) => (
+                <li key={item} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
 }

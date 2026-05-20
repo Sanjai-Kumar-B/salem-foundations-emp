@@ -1,5 +1,6 @@
 /**
  * PATCH /api/leads/[id]   — Update lead stage / notes (admin or assigned counsellor)
+ * DELETE /api/leads/[id]  — Delete a lead (admin only)
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
@@ -46,4 +47,37 @@ export async function PATCH(
   await adminDb.collection(LEADS_COL).doc(params.id).update(updates);
 
   return NextResponse.json({ success: true });
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await requireAuth(request);
+  if (isErrorResponse(session)) return session;
+
+  // Only admin can delete leads
+  if (session.role !== 'ADMIN') {
+    return NextResponse.json(
+      { error: 'Forbidden: only admins can delete leads' },
+      { status: 403 }
+    );
+  }
+
+  if (!params.id) {
+    return NextResponse.json({ error: 'Lead ID is required' }, { status: 400 });
+  }
+
+  try {
+    const doc = await adminDb.collection(LEADS_COL).doc(params.id).get();
+    if (!doc.exists) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    await adminDb.collection(LEADS_COL).doc(params.id).delete();
+    return NextResponse.json({ success: true, id: params.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete lead';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

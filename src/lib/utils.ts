@@ -122,6 +122,38 @@ export function getStageColor(stage: string): string {
     }
 }
 
+export function getLeadStatusColor(status: string): string {
+    switch (status) {
+        case 'NEW':
+            return 'text-blue-700 bg-blue-50';
+        case 'CONTACTED':
+            return 'text-amber-700 bg-amber-50';
+        case 'INTERESTED':
+            return 'text-green-700 bg-green-50';
+        case 'NOT_INTERESTED':
+            return 'text-red-700 bg-red-50';
+        case 'CONVERTED':
+            return 'text-emerald-700 bg-emerald-50';
+        default:
+            return 'text-gray-700 bg-gray-50';
+    }
+}
+
+export function formatActivityType(type: 'call' | 'note' | 'followup' | 'status_change'): string {
+    switch (type) {
+        case 'call':
+            return 'Call';
+        case 'note':
+            return 'Note';
+        case 'followup':
+            return 'Follow-up';
+        case 'status_change':
+            return 'Status Update';
+        default:
+            return 'Activity';
+    }
+}
+
 /**
  * Get task status color
  */

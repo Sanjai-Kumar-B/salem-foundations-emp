@@ -5,9 +5,11 @@ import { Timestamp } from 'firebase/firestore';
 export type UserRole = 'ADMIN' | 'COUNSELLOR';
 export type LeadSource = 'BULK' | 'APPLICATION';
 export type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
+export type LeadStatus = 'NEW' | 'CONTACTED' | 'INTERESTED' | 'NOT_INTERESTED' | 'CONVERTED';
 export type Pipeline = 'BULK' | 'FOLLOW_UP';
 export type TaskType = 'CALL' | 'FOLLOW_UP' | 'DOCUMENT';
 export type TaskStatus = 'PENDING' | 'COMPLETED' | 'OVERDUE';
+export type StrictCallOutcome = 'INTERESTED' | 'NOT_INTERESTED' | 'CALL_LATER' | 'NO_RESPONSE' | 'WRONG_NUMBER' | 'CONVERTED';
 
 export type LeadStage =
     | 'NEW'
@@ -49,15 +51,26 @@ export interface Lead {
     id: string;
     name: string;
     mobile: string;
+    fatherName?: string;
     email?: string;
     source: LeadSource;
     applicationNumber?: string; // Links to Application System
     assignedEmployeeId?: string;
+    assignedBy?: string;
+    assignmentType?: 'MANUAL' | 'AUTO' | 'FILTER';
     priority: Priority;
+    status: LeadStatus;
     currentStage: LeadStage;
+    nextFollowUp?: Timestamp;
+    lastCallDuration?: number;
+    lastOutcome?: StrictCallOutcome;
+    lastActivityAt?: Timestamp;
     createdAt: Timestamp;
     updatedAt: Timestamp;
     // Additional info from bulk upload
+    gender?: string;
+    district?: string;
+    school?: string;
     course?: string;
     location?: string;
     notes?: string;
@@ -103,6 +116,35 @@ export interface CallOutcome {
 }
 
 /**
+ * Lead activity timeline item
+ * Collection: activities/{activityId}
+ */
+export interface LeadActivity {
+    id: string;
+    leadId: string;
+    type: 'call' | 'note' | 'followup' | 'status_change';
+    callStatus?: 'connected' | 'not_connected';
+    outcome?: StrictCallOutcome;
+    duration?: number;
+    callStartedAt?: Timestamp;
+    callEndedAt?: Timestamp;
+    note?: string;
+    timestamp: Timestamp;
+    employeeId: string;
+}
+
+/**
+ * Lead conversion event
+ * Collection: conversions/{conversionId}
+ */
+export interface Conversion {
+    id: string;
+    leadId: string;
+    convertedBy: string;
+    timestamp: Timestamp;
+}
+
+/**
  * Activity Log for tracking login times, calls, etc.
  * Collection: activity_logs/{logId}
  */
@@ -118,11 +160,17 @@ export interface ActivityLog {
 
 export interface CallOutcomeFormData {
     connected: boolean;
-    interestLevel?: InterestLevel;
-    readiness?: Readiness;
-    nextAction: NextAction;
+    duration?: number;
+    outcome: StrictCallOutcome;
     followUpDate?: Date;
     notes: string;
+}
+
+export interface WhatsAppTemplate {
+    id: string;
+    name: string;
+    content: string;
+    createdAt: Timestamp;
 }
 
 export interface EmployeeFormData {

@@ -7,10 +7,8 @@
  * based on the USE_MOCK_DATA config flag
  */
 
-import { USE_MOCK_DATA } from '@/lib/config';
-
 // Re-export the appropriate auth provider based on config
-export { AuthProvider, useAuth } from './useMockAuth';
+export { AuthProvider, useAuth } from './useRealAuth';
 
-// When switching to real Firebase, change the import above to:
-// export { AuthProvider, useAuth } from './useRealAuth';
+// To return to demo mode:
+// if (USE_MOCK_DATA) export from './useMockAuth'

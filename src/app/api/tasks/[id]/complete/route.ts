@@ -23,7 +23,8 @@ export async function PATCH(
   const task = doc.data()!;
 
   // COUNSELLOR can only complete their own tasks
-  if (session.role === 'COUNSELLOR' && task.assignedEmployeeId !== session.uid) {
+  const ownerId = task.employeeId ?? task.assignedEmployeeId;
+  if (session.role === 'COUNSELLOR' && ownerId !== session.uid) {
     return NextResponse.json({ error: 'Forbidden: not your task' }, { status: 403 });
   }
 

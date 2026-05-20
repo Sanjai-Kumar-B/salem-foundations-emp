@@ -16,21 +16,25 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const activeOnly = searchParams.get('activeOnly') === 'true';
+  const needsActiveOnly = activeOnly || session.role === 'COUNSELLOR';
 
-  let query = adminDb.collection(EMPLOYEES_COL).orderBy('name');
-  if (activeOnly) {
-    query = query.where('isActive', '==', true) as typeof query;
+  try {
+    // Keep the Firestore query index-friendly; order in memory.
+    let query: FirebaseFirestore.Query = adminDb.collection(EMPLOYEES_COL);
+    if (needsActiveOnly) {
+      query = query.where('isActive', '==', true);
+    }
+
+    const snapshot = await query.get();
+    const employees = snapshot.docs
+      .map((doc: FirebaseFirestore.QueryDocumentSnapshot): Record<string, unknown> => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => String(a['name'] ?? '').localeCompare(String(b['name'] ?? '')));
+
+    return NextResponse.json({ employees });
+  } catch (error) {
+    console.error('GET /api/employees failed:', error);
+    return NextResponse.json({ error: 'Failed to load employees' }, { status: 500 });
   }
-
-  // COUNSELLOR can only see active employees (no sensitive admin data)
-  if (session.role === 'COUNSELLOR') {
-    query = query.where('isActive', '==', true) as typeof query;
-  }
-
-  const snapshot = await query.get();
-  const employees = snapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({ id: doc.id, ...doc.data() }));
-
-  return NextResponse.json({ employees });
 }
 
 export async function POST(request: NextRequest) {

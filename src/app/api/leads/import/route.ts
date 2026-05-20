@@ -31,13 +31,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Max 500 leads per import' }, { status: 400 });
   }
 
-  // Collect existing mobile numbers for duplicate detection
-  const mobiles = leads.map((l) => l.mobile).filter(Boolean);
-  const existingSnap = await adminDb
-    .collection(LEADS_COL)
-    .where('mobile', 'in', mobiles.slice(0, 30)) // Firestore `in` limit = 30
-    .get();
-  const existingMobiles = new Set(existingSnap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => d.data().mobile as string));
+  const normalizeMobile = (value: string) => value.replace(/\D/g, '').slice(-10);
+
+  // Read once and dedupe with normalized numbers to avoid 30-item `in` limit issues.
+  const existingSnap = await adminDb.collection(LEADS_COL).select('mobile').get();
+  const existingMobiles = new Set(
+    existingSnap.docs
+      .map((d: FirebaseFirestore.QueryDocumentSnapshot) => String(d.data().mobile ?? ''))
+      .filter(Boolean)
+      .map(normalizeMobile)
+  );
 
   const skipped: string[] = [];
   const now = FieldValue.serverTimestamp();
@@ -48,18 +51,24 @@ export async function POST(request: NextRequest) {
 
   for (const lead of leads) {
     if (!lead.name || !lead.mobile) continue;
-    if (existingMobiles.has(lead.mobile)) {
-      skipped.push(lead.mobile);
+    const normalizedMobile = normalizeMobile(lead.mobile);
+    if (!normalizedMobile) continue;
+
+    if (existingMobiles.has(normalizedMobile)) {
+      skipped.push(normalizedMobile);
       continue;
     }
+
+    existingMobiles.add(normalizedMobile);
 
     const ref = adminDb.collection(LEADS_COL).doc();
     batch.set(ref, {
       name: lead.name,
-      mobile: lead.mobile,
+      mobile: normalizedMobile,
       email: lead.email ?? null,
       source: lead.source ?? 'BULK',
       priority: lead.priority ?? 'MEDIUM',
+      status: 'NEW',
       currentStage: 'NEW',
       createdAt: now,
       updatedAt: now,

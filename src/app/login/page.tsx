@@ -38,7 +38,7 @@ export default function LoginPage() {
                         <span className="text-white font-bold text-2xl">EM</span>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
-                    <p className="text-gray-500 mt-1">Sign in to your account</p>
+                    <p className="text-gray-500 mt-1">Staff Portal Login</p>
                 </div>
 
                 {/* Login Form */}
@@ -93,18 +93,9 @@ export default function LoginPage() {
                     </form>
                 </Card>
 
-                {/* Demo Credentials */}
-                <Card className="mt-4 bg-amber-50 border-amber-200">
-                    <p className="text-xs font-medium text-amber-800 mb-2">Demo Credentials:</p>
-                    <div className="space-y-1 text-xs text-amber-700">
-                        <p><strong>Admin:</strong> admin@demo.com / demo123</p>
-                        <p><strong>Counsellor:</strong> priya@demo.com / demo123</p>
-                    </div>
-                </Card>
-
                 {/* Help Text */}
                 <p className="text-center text-sm text-gray-500 mt-4">
-                    Demo mode - using mock data
+                    Sign in with your Firebase employee account
                 </p>
             </div>
         </div>

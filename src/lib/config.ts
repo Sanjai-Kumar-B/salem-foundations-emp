@@ -5,7 +5,7 @@
  * Set to false when ready to connect to real Firebase
  */
 
-export const USE_MOCK_DATA = true;
+export const USE_MOCK_DATA = false;
 
 export const APP_CONFIG = {
     name: 'Employee Management System',

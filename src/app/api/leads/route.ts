@@ -17,20 +17,31 @@ export async function GET(request: NextRequest) {
   const stage = searchParams.get('stage');
   const pipeline = searchParams.get('pipeline');
 
-  let query = adminDb.collection(LEADS_COL).orderBy('createdAt', 'desc') as FirebaseFirestore.Query;
+  try {
+    let query = adminDb.collection(LEADS_COL) as FirebaseFirestore.Query;
 
-  // COUNSELLOR sees only their own assigned leads
-  if (session.role === 'COUNSELLOR') {
-    query = query.where('assignedEmployeeId', '==', session.uid);
+    // COUNSELLOR sees only their own assigned leads
+    if (session.role === 'COUNSELLOR') {
+      query = query.where('assignedEmployeeId', '==', session.uid);
+    }
+
+    if (stage) query = query.where('currentStage', '==', stage);
+    if (pipeline) query = query.where('source', '==', pipeline);
+
+    const snapshot = await query.limit(200).get();
+    const leads = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => {
+        const timeA = (a.createdAt as any)?.toMillis?.() ?? 0;
+        const timeB = (b.createdAt as any)?.toMillis?.() ?? 0;
+        return timeB - timeA;
+      });
+
+    return NextResponse.json({ leads });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch leads';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (stage) query = query.where('currentStage', '==', stage);
-  if (pipeline) query = query.where('source', '==', pipeline);
-
-  const snapshot = await query.limit(200).get();
-  const leads = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-  return NextResponse.json({ leads });
 }
 
 export async function POST(request: NextRequest) {
@@ -49,10 +60,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'name, mobile, source are required' }, { status: 400 });
   }
 
+  const normalizedMobile = String(mobile).replace(/\D/g, '').slice(-10);
+  if (!normalizedMobile) {
+    return NextResponse.json({ error: 'Invalid mobile number' }, { status: 400 });
+  }
+
   // Duplicate check by mobile
   const existing = await adminDb
     .collection(LEADS_COL)
-    .where('mobile', '==', mobile)
+    .where('mobile', '==', normalizedMobile)
     .limit(1)
     .get();
 
@@ -66,12 +82,15 @@ export async function POST(request: NextRequest) {
   const now = FieldValue.serverTimestamp();
   const leadData = {
     name,
-    mobile,
+    mobile: normalizedMobile,
     email: email ?? null,
     source,
     priority: priority ?? 'MEDIUM',
     pipeline: pipeline ?? 'BULK',
+    status: 'NEW',
     currentStage: 'NEW',
+    assignedEmployeeId: null,
+    nextFollowUp: null,
     createdAt: now,
     updatedAt: now,
   };

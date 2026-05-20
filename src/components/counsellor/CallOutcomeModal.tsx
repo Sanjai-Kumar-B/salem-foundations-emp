@@ -1,226 +1,197 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Modal, Button, Select, Textarea, Input } from '@/components/ui';
-import { CallOutcomeFormData, InterestLevel, Readiness, NextAction } from '@/types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button, Input, Modal, Select, Textarea } from '@/components/ui';
+import { CallOutcomeFormData, StrictCallOutcome } from '@/types';
 
 interface CallOutcomeModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: CallOutcomeFormData) => Promise<void>;
     leadName: string;
+    callStartTime: number | null;
 }
 
-export function CallOutcomeModal({
-    isOpen,
-    onClose,
-    onSubmit,
-    leadName,
-}: CallOutcomeModalProps) {
-    const [formData, setFormData] = useState<CallOutcomeFormData>({
-        connected: false,
-        nextAction: 'FOLLOW_UP',
+type FollowUpPreset = 'none' | '5m' | '15m' | '1h' | 'custom';
+
+export function CallOutcomeModal({ isOpen, onClose, onSubmit, leadName, callStartTime }: CallOutcomeModalProps) {
+    const [formData, setFormData] = useState<Partial<CallOutcomeFormData>>({
+        connected: true,
+        outcome: undefined,
         notes: '',
     });
-    const [submitting, setSubmitting] = useState(false);
+    const [preset, setPreset] = useState<FollowUpPreset>('none');
+    const [customDateTime, setCustomDateTime] = useState('');
+    const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    useEffect(() => {
+        if (!isOpen) {
+            setFormData({ connected: true, outcome: undefined, notes: '' });
+            setPreset('none');
+            setCustomDateTime('');
+            setError('');
+        }
+    }, [isOpen]);
+
+    const computedFollowUp = useMemo(() => {
+        const now = new Date();
+        if (preset === '5m') return new Date(now.getTime() + 5 * 60 * 1000);
+        if (preset === '15m') return new Date(now.getTime() + 15 * 60 * 1000);
+        if (preset === '1h') return new Date(now.getTime() + 60 * 60 * 1000);
+        if (preset === 'custom' && customDateTime) return new Date(customDateTime);
+        return undefined;
+    }, [preset, customDateTime]);
+
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
-        // Validation: Follow-up date mandatory if interested
-        if (
-            formData.connected &&
-            formData.interestLevel &&
-            formData.interestLevel !== 'NONE' &&
-            formData.nextAction === 'FOLLOW_UP' &&
-            !formData.followUpDate
-        ) {
-            setError('Follow-up date is required for interested leads');
+        if (!formData.outcome) {
+            setError('Please select an outcome for the call.');
             return;
         }
 
-        // Validation: Notes are required
-        if (!formData.notes.trim()) {
-            setError('Please add notes about the call');
+        if (!formData.notes || !formData.notes.trim()) {
+            setError('Notes are mandatory. Please record what happened.');
             return;
         }
 
-        setSubmitting(true);
+        const requiresFollowUp = ['INTERESTED', 'CALL_LATER'].includes(formData.outcome);
+        if (requiresFollowUp && !computedFollowUp) {
+            setError(`A follow-up time is required when marking a lead as ${formData.outcome.replace('_', ' ')}.`);
+            return;
+        }
+
+        let durationSeconds = 0;
+        if (callStartTime) {
+            durationSeconds = Math.round((Date.now() - callStartTime) / 1000);
+        }
+
+        const payload: CallOutcomeFormData = {
+            connected: formData.connected!,
+            outcome: formData.outcome as StrictCallOutcome,
+            notes: formData.notes.trim(),
+            duration: durationSeconds,
+            followUpDate: computedFollowUp,
+        };
+
+        setSaving(true);
         try {
-            await onSubmit(formData);
-            // Reset form
-            setFormData({
-                connected: false,
-                nextAction: 'FOLLOW_UP',
-                notes: '',
-            });
+            await onSubmit(payload);
+            setFormData({ connected: true, outcome: undefined, notes: '' });
             onClose();
         } catch {
-            setError('Failed to save call outcome');
+            setError('Failed to save call log');
         } finally {
-            setSubmitting(false);
+            setSaving(false);
         }
     };
 
-    const handleConnectedChange = (connected: boolean) => {
-        setFormData({
-            ...formData,
-            connected,
-            interestLevel: connected ? formData.interestLevel : undefined,
-            readiness: connected ? formData.readiness : undefined,
-            nextAction: connected ? 'FOLLOW_UP' : 'FOLLOW_UP',
-        });
-    };
+    const isConnectedDependent = ['INTERESTED', 'NOT_INTERESTED', 'CALL_LATER', 'CONVERTED'].includes(formData.outcome || '');
+
+    useEffect(() => {
+        if (['NO_RESPONSE', 'WRONG_NUMBER'].includes(formData.outcome || '')) {
+            setFormData(prev => ({ ...prev, connected: false }));
+        } else if (['INTERESTED', 'NOT_INTERESTED', 'CALL_LATER', 'CONVERTED'].includes(formData.outcome || '')) {
+            setFormData(prev => ({ ...prev, connected: true }));
+        }
+    }, [formData.outcome]);
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Call Outcome" size="lg">
-            <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Lead Name */}
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                    <p className="text-sm text-gray-500">Recording outcome for</p>
+        <Modal isOpen={isOpen} onClose={onClose} title="Log Call Outcome" size="lg">
+            <form onSubmit={handleSave} className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500">Lead</p>
                     <p className="font-semibold text-gray-900">{leadName}</p>
                 </div>
 
                 {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                    <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">
                         {error}
                     </div>
                 )}
 
-                {/* Connected? */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Select
+                        label="Call Outcome"
+                        value={formData.outcome || ''}
+                        onChange={(e) => setFormData({ ...formData, outcome: e.target.value as StrictCallOutcome })}
+                        options={[
+                            { value: '', label: 'Select Outcome...' },
+                            { value: 'INTERESTED', label: 'Interested' },
+                            { value: 'CALL_LATER', label: 'Call Later' },
+                            { value: 'CONVERTED', label: 'Converted directly' },
+                            { value: 'NO_RESPONSE', label: 'No Response / Skipped' },
+                            { value: 'WRONG_NUMBER', label: 'Wrong Number' },
+                            { value: 'NOT_INTERESTED', label: 'Not Interested' },
+                        ]}
+                    />
+
+                    <Select
+                        label="Connection Status"
+                        value={formData.connected ? 'connected' : 'not_connected'}
+                        onChange={(e) => {
+                            const connected = e.target.value === 'connected';
+                            setFormData({ ...formData, connected });
+                        }}
+                        disabled={true} 
+                        options={[
+                            { value: 'connected', label: 'Connected' },
+                            { value: 'not_connected', label: 'Not Connected' },
+                        ]}
+                    />
+                </div>
+
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Did you connect with the student?
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Follow-up {(formData.outcome === 'INTERESTED' || formData.outcome === 'CALL_LATER') && <span className="text-red-500">*</span>}
                     </label>
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={() => handleConnectedChange(true)}
-                            className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${formData.connected
-                                ? 'border-green-500 bg-green-50 text-green-700'
-                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {[
+                            { key: 'none', label: 'No Follow-up' },
+                            { key: '5m', label: '5 min' },
+                            { key: '15m', label: '15 min' },
+                            { key: '1h', label: '1 hour' },
+                            { key: 'custom', label: 'Custom' },
+                        ].map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => setPreset(item.key as FollowUpPreset)}
+                                className={`px-2 py-2 text-xs border rounded-lg ${
+                                    preset === item.key ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                                 }`}
-                        >
-                            ✓ Yes, Connected
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => handleConnectedChange(false)}
-                            className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${!formData.connected
-                                ? 'border-amber-500 bg-amber-50 text-amber-700'
-                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                                }`}
-                        >
-                            ✗ No Answer
-                        </button>
+                            >
+                                {item.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                {/* If Connected - Show Interest & Readiness */}
-                {formData.connected && (
-                    <>
-                        <Select
-                            label="Interest Level *"
-                            value={formData.interestLevel || ''}
-                            onChange={(e) =>
-                                setFormData({ ...formData, interestLevel: e.target.value as InterestLevel })
-                            }
-                            placeholder="Select interest level"
-                            options={[
-                                { value: 'HIGH', label: '🔥 High - Very interested' },
-                                { value: 'MEDIUM', label: '👍 Medium - Somewhat interested' },
-                                { value: 'LOW', label: '🤔 Low - Needs convincing' },
-                                { value: 'NONE', label: '❌ None - Not interested' },
-                            ]}
-                        />
-
-                        <Select
-                            label="Readiness to Join *"
-                            value={formData.readiness || ''}
-                            onChange={(e) =>
-                                setFormData({ ...formData, readiness: e.target.value as Readiness })
-                            }
-                            placeholder="Select readiness"
-                            options={[
-                                { value: 'READY_NOW', label: 'Ready to join now' },
-                                { value: 'NEXT_MONTH', label: 'Next month' },
-                                { value: 'NEXT_QUARTER', label: 'Next 3 months' },
-                                { value: 'UNDECIDED', label: 'Undecided' },
-                            ]}
-                        />
-                    </>
-                )}
-
-                {/* Next Action */}
-                <Select
-                    label="Next Action *"
-                    value={formData.nextAction}
-                    onChange={(e) =>
-                        setFormData({ ...formData, nextAction: e.target.value as NextAction })
-                    }
-                    options={
-                        formData.connected
-                            ? [
-                                { value: 'FOLLOW_UP', label: '📞 Schedule Follow-up' },
-                                { value: 'SEND_INFO', label: '📧 Send Information' },
-                                { value: 'CLOSE_QUALIFIED', label: '✅ Close as Qualified' },
-                                { value: 'CLOSE_UNQUALIFIED', label: '❌ Close as Unqualified' },
-                            ]
-                            : [
-                                { value: 'FOLLOW_UP', label: '📞 Try Again Later' },
-                            ]
-                    }
-                />
-
-                {/* Follow-up Date - Required if interested */}
-                {formData.nextAction === 'FOLLOW_UP' && (
+                {preset === 'custom' && (
                     <Input
-                        label={
-                            formData.connected && formData.interestLevel !== 'NONE'
-                                ? 'Follow-up Date * (Required for interested leads)'
-                                : 'Follow-up Date'
-                        }
+                        label="Custom Follow-up Time"
                         type="datetime-local"
-                        value={
-                            formData.followUpDate
-                                ? new Date(formData.followUpDate.getTime() - formData.followUpDate.getTimezoneOffset() * 60000)
-                                    .toISOString()
-                                    .slice(0, 16)
-                                : ''
-                        }
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                followUpDate: e.target.value ? new Date(e.target.value) : undefined,
-                            })
-                        }
-                        min={new Date().toISOString().slice(0, 16)}
+                        value={customDateTime}
+                        onChange={(e) => setCustomDateTime(e.target.value)}
                     />
                 )}
 
-                {/* Notes */}
                 <Textarea
-                    label="Notes *"
-                    value={formData.notes}
+                    label="Call Notes"
+                    rows={4}
+                    placeholder="Must summarize key takeaways and the reason for the selected outcome."
+                    value={formData.notes || ''}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="What was discussed? Any important details?"
-                    rows={3}
                 />
 
-                {/* Actions */}
-                <div className="flex gap-3 pt-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1"
-                        onClick={onClose}
-                    >
-                        Cancel
+                <div className="flex gap-3 pt-1">
+                    <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+                        Discard
                     </Button>
-                    <Button type="submit" className="flex-1" isLoading={submitting}>
-                        Save Outcome
+                    <Button type="submit" className="flex-1" isLoading={saving}>
+                        Save Log
                     </Button>
                 </div>
             </form>

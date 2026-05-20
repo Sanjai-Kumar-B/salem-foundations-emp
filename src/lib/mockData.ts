@@ -1,5 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
-import { Employee, Lead, Task, CallOutcome } from '@/types';
+import { Employee, Lead, Task, CallOutcome, LeadActivity, Conversion } from '@/types';
 
 // Helper to create Firestore-like Timestamps
 const now = () => Timestamp.fromDate(new Date());
@@ -70,6 +70,7 @@ export const mockLeads: Lead[] = [
         email: 'amit.singh@email.com',
         source: 'BULK',
         priority: 'HIGH',
+        status: 'NEW',
         currentStage: 'NEW',
         createdAt: daysAgo(2),
         updatedAt: daysAgo(2),
@@ -82,6 +83,7 @@ export const mockLeads: Lead[] = [
         mobile: '9812345002',
         source: 'BULK',
         priority: 'MEDIUM',
+        status: 'NEW',
         currentStage: 'NEW',
         createdAt: daysAgo(3),
         updatedAt: daysAgo(3),
@@ -95,8 +97,10 @@ export const mockLeads: Lead[] = [
         email: 'vikram.m@email.com',
         source: 'BULK',
         priority: 'LOW',
+        status: 'CONTACTED',
         currentStage: 'CONTACTED',
         assignedEmployeeId: 'emp-counsellor-001',
+        nextFollowUp: Timestamp.fromDate(new Date(Date.now() + 2 * 60 * 60 * 1000)),
         createdAt: daysAgo(5),
         updatedAt: daysAgo(1),
         course: 'Digital Marketing',
@@ -108,6 +112,7 @@ export const mockLeads: Lead[] = [
         mobile: '9812345004',
         source: 'BULK',
         priority: 'HIGH',
+        status: 'INTERESTED',
         currentStage: 'QUALIFIED',
         assignedEmployeeId: 'emp-counsellor-001',
         createdAt: daysAgo(7),
@@ -121,6 +126,7 @@ export const mockLeads: Lead[] = [
         mobile: '9812345005',
         source: 'BULK',
         priority: 'MEDIUM',
+        status: 'NEW',
         currentStage: 'NEW',
         createdAt: daysAgo(1),
         updatedAt: daysAgo(1),
@@ -136,8 +142,10 @@ export const mockLeads: Lead[] = [
         source: 'APPLICATION',
         applicationNumber: 'APP2024001',
         priority: 'HIGH',
+        status: 'CONTACTED',
         currentStage: 'CONTACTED',
         assignedEmployeeId: 'emp-counsellor-002',
+        nextFollowUp: Timestamp.fromDate(new Date(Date.now() + 4 * 60 * 60 * 1000)),
         createdAt: daysAgo(4),
         updatedAt: hoursAgo(6),
         course: 'MBA',
@@ -150,6 +158,7 @@ export const mockLeads: Lead[] = [
         source: 'APPLICATION',
         applicationNumber: 'APP2024002',
         priority: 'HIGH',
+        status: 'INTERESTED',
         currentStage: 'QUALIFIED',
         assignedEmployeeId: 'emp-counsellor-002',
         createdAt: daysAgo(6),
@@ -163,7 +172,9 @@ export const mockLeads: Lead[] = [
         source: 'APPLICATION',
         applicationNumber: 'APP2024003',
         priority: 'MEDIUM',
+        status: 'NEW',
         currentStage: 'NEW',
+        nextFollowUp: Timestamp.fromDate(new Date(Date.now() - 30 * 60 * 1000)),
         createdAt: daysAgo(1),
         updatedAt: daysAgo(1),
         course: 'B.Tech',
@@ -176,8 +187,10 @@ export const mockLeads: Lead[] = [
         source: 'APPLICATION',
         applicationNumber: 'APP2024004',
         priority: 'LOW',
+        status: 'CONTACTED',
         currentStage: 'CONTACTED',
         assignedEmployeeId: 'emp-counsellor-001',
+        nextFollowUp: Timestamp.fromDate(new Date(Date.now() - 2 * 60 * 60 * 1000)),
         createdAt: daysAgo(3),
         updatedAt: daysAgo(2),
         course: 'M.Tech',
@@ -189,6 +202,7 @@ export const mockLeads: Lead[] = [
         source: 'APPLICATION',
         applicationNumber: 'APP2024005',
         priority: 'HIGH',
+        status: 'CONVERTED',
         currentStage: 'CONVERTED',
         assignedEmployeeId: 'emp-counsellor-003',
         createdAt: daysAgo(10),
@@ -322,6 +336,44 @@ export const mockCallOutcomes: CallOutcome[] = [
         followUpDate: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000)),
         notes: 'No answer, will try again tomorrow.',
         createdAt: hoursAgo(2),
+    },
+];
+
+export const mockActivities: LeadActivity[] = [
+    {
+        id: 'activity-001',
+        leadId: 'lead-003',
+        type: 'call',
+        callStatus: 'connected',
+        duration: 180,
+        note: 'Student requested callback tomorrow afternoon.',
+        timestamp: daysAgo(1),
+        employeeId: 'emp-counsellor-001',
+    },
+    {
+        id: 'activity-002',
+        leadId: 'lead-003',
+        type: 'followup',
+        note: 'Follow-up set for tomorrow.',
+        timestamp: hoursAgo(5),
+        employeeId: 'emp-counsellor-001',
+    },
+    {
+        id: 'activity-003',
+        leadId: 'lead-app-001',
+        type: 'note',
+        note: 'Waiting for student documents.',
+        timestamp: hoursAgo(3),
+        employeeId: 'emp-counsellor-002',
+    },
+];
+
+export const mockConversions: Conversion[] = [
+    {
+        id: 'conversion-001',
+        leadId: 'lead-app-005',
+        convertedBy: 'emp-counsellor-003',
+        timestamp: daysAgo(2),
     },
 ];
 

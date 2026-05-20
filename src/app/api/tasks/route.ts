@@ -17,26 +17,43 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get('status');
   const today = searchParams.get('today') === 'true';
 
-  let query = adminDb.collection(TASKS_COL).orderBy('dueDate', 'asc') as FirebaseFirestore.Query;
+  try {
+    let query = adminDb.collection(TASKS_COL) as FirebaseFirestore.Query;
 
-  // COUNSELLOR sees only their own tasks
-  if (session.role === 'COUNSELLOR') {
-    query = query.where('assignedEmployeeId', '==', session.uid);
+    // COUNSELLOR sees only their own tasks
+    if (session.role === 'COUNSELLOR') {
+      query = query.where('employeeId', '==', session.uid);
+    }
+
+    if (status) query = query.where('status', '==', status);
+
+    const snapshot = await query.limit(100).get();
+    let tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Filter by today if requested
+    if (today) {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      tasks = tasks.filter((task) => {
+        const dueTime = (task.dueDate as any)?.toMillis?.() ?? 0;
+        return dueTime >= start.getTime() && dueTime <= end.getTime();
+      });
+    }
+
+    // Sort by dueDate
+    tasks.sort((a, b) => {
+      const timeA = (a.dueDate as any)?.toMillis?.() ?? 0;
+      const timeB = (b.dueDate as any)?.toMillis?.() ?? 0;
+      return timeA - timeB;
+    });
+
+    return NextResponse.json({ tasks });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch tasks';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (status) query = query.where('status', '==', status);
-
-  if (today) {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    query = query.where('dueDate', '>=', start).where('dueDate', '<=', end);
-  }
-
-  const snapshot = await query.limit(100).get();
-  const tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  return NextResponse.json({ tasks });
 }
 
 export async function POST(request: NextRequest) {
@@ -44,7 +61,7 @@ export async function POST(request: NextRequest) {
   if (isErrorResponse(session)) return session;
 
   const body = await request.json();
-  const { leadId, type, description, dueDate, assignedEmployeeId } = body;
+  const { leadId, type, description, dueDate, assignedEmployeeId, leadName, pipeline } = body;
 
   if (!leadId || !type || !dueDate) {
     return NextResponse.json({ error: 'leadId, type, dueDate are required' }, { status: 400 });
@@ -57,10 +74,14 @@ export async function POST(request: NextRequest) {
   const now = FieldValue.serverTimestamp();
   const ref = await adminDb.collection(TASKS_COL).add({
     leadId,
+    taskType: type,
     type,
+    leadName: leadName ?? 'Lead',
+    pipeline: pipeline ?? 'BULK',
     description: description ?? '',
     dueDate: new Date(dueDate),
     status: 'PENDING',
+    employeeId: targetEmployee,
     assignedEmployeeId: targetEmployee,
     createdBy: session.uid,
     createdAt: now,
