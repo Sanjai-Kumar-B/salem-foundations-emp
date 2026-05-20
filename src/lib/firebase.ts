@@ -14,7 +14,12 @@ const firebaseConfig = {
 // Initialize Firebase
 let app: FirebaseApp;
 if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
+    try {
+    app = initializeApp(firebaseConfig);
+  } catch (e) {
+    console.warn("Client Firebase config not available during build", e);
+    app = {} as FirebaseApp;
+  }
 } else {
   app = getApps()[0];
 }
