@@ -17,6 +17,9 @@ import {
     X,
     Phone,
     CalendarCheck,
+    MessageSquare,
+    User,
+    ChevronRight,
 } from 'lucide-react';
 
 interface NavItem {
@@ -26,11 +29,13 @@ interface NavItem {
 }
 
 const adminNavItems: NavItem[] = [
-    { name: 'Command Center', href: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
+    { name: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
     { name: 'Employees', href: '/admin/employees', icon: <Users size={20} /> },
-    { name: 'Leads Workspace', href: '/admin/leads', icon: <UserPlus size={20} /> },
-    { name: 'Assignment Center', href: '/admin/assignments', icon: <ClipboardList size={20} /> },
-    { name: 'Analytics Center', href: '/admin/analytics', icon: <BarChart3 size={20} /> },
+    { name: 'Leads', href: '/admin/leads', icon: <UserPlus size={20} /> },
+    { name: 'Leads Assignment', href: '/admin/assignments', icon: <ClipboardList size={20} /> },
+    { name: 'Analytics', href: '/admin/analytics', icon: <BarChart3 size={20} /> },
+    { name: 'WhatsApp Templates', href: '/admin/whatsapp', icon: <MessageSquare size={20} /> },
+    { name: 'Profile', href: '/admin/profile', icon: <User size={20} /> },
 ];
 
 const counsellorNavItems: NavItem[] = [
@@ -53,13 +58,13 @@ export function Sidebar({ role }: SidebarProps) {
     const NavContent = () => (
         <>
             {/* Logo/Brand */}
-            <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">EM</span>
+            <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200">
+                <div className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center p-1 shadow-2xs shrink-0">
+                    <img src="/logo_eng.jpg" alt="Salem Foundations" className="w-full h-full object-contain rounded-lg" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h1 className="text-sm font-bold text-gray-900 truncate">Employee Management</h1>
-                    <p className="text-xs text-gray-500 truncate">{role === 'ADMIN' ? 'Admin Panel' : 'Counsellor'}</p>
+                    <h1 className="text-sm font-bold text-gray-900 truncate">Salem Foundations</h1>
+                    <p className="text-xs text-gray-500 truncate">{role === 'ADMIN' ? 'Admin Portal' : 'Counsellor'}</p>
                 </div>
             </div>
 
@@ -86,26 +91,26 @@ export function Sidebar({ role }: SidebarProps) {
                 })}
             </nav>
 
-            {/* User Info & Logout */}
-            <div className="border-t border-gray-200 p-4">
-                <div className="flex items-center gap-3 mb-3">
-                    <div className="w-9 h-9 bg-gray-200 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-600">
-                            {employee?.name?.charAt(0).toUpperCase() || 'U'}
-                        </span>
+            {/* User Profile Card (Sign out moved inside profile) */}
+            <div className="border-t border-gray-200 p-3">
+                <Link
+                    href={role === 'ADMIN' ? '/admin/profile' : '/counsellor/profile'}
+                    className={cn(
+                        'flex items-center gap-3 p-2.5 rounded-xl transition-all border group',
+                        pathname.includes('/profile')
+                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                            : 'hover:bg-slate-50 border-transparent hover:border-slate-200'
+                    )}
+                >
+                    <div className="w-9 h-9 bg-blue-100 text-blue-700 font-bold rounded-xl flex items-center justify-center shrink-0">
+                        {employee?.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{employee?.name || 'User'}</p>
-                        <p className="text-xs text-gray-500 truncate">{employee?.email}</p>
+                        <p className="text-sm font-bold text-gray-900 group-hover:text-blue-600 truncate">{employee?.name || 'User'}</p>
+                        <p className="text-xs text-gray-500 truncate">{role === 'ADMIN' ? 'Admin Profile' : 'Staff Profile'}</p>
                     </div>
-                </div>
-                <button
-                    onClick={signOut}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                    <LogOut size={18} />
-                    Sign Out
-                </button>
+                    <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                </Link>
             </div>
         </>
     );

@@ -1,8 +1,67 @@
-import { Lead } from '../types';
+import type { Lead } from '../types/index.ts';
 
 export interface NextActionRecommendation {
     lead: Readonly<Lead> | null;
     reason: 'OVERDUE' | 'FOLLOW_UP_TODAY' | 'NEW' | 'OTHER' | null;
+}
+
+/**
+ * Returns whether a given time is within legal/standard calling hours (09:00 - 18:00 local time).
+ */
+export function isWithinCallingHours(date: Date = new Date()): boolean {
+    const hours = date.getHours();
+    return hours >= 9 && hours < 18;
+}
+
+/**
+ * Calculates retry backoff and exhaustion for auto-dial outcomes.
+ */
+export function calculateRetrySchedule(
+    outcome: string,
+    currentAttempts: number
+): { retryDelayHours: number | null; shouldExhaust: boolean; nextStage?: string } {
+    if (outcome === 'WRONG_NUMBER') {
+        return { retryDelayHours: null, shouldExhaust: true, nextStage: 'UNQUALIFIED' };
+    }
+
+    if (outcome === 'NOT_INTERESTED') {
+        return { retryDelayHours: null, shouldExhaust: true, nextStage: 'CLOSED' };
+    }
+
+    if (outcome === 'NO_RESPONSE' || outcome === 'BUSY') {
+        if (currentAttempts >= 3) {
+            return { retryDelayHours: null, shouldExhaust: true, nextStage: 'UNQUALIFIED' };
+        }
+        // Exponential backoff: 1st retry in 2h, 2nd retry in 6h
+        const delay = currentAttempts === 1 ? 2 : 6;
+        return { retryDelayHours: delay, shouldExhaust: false, nextStage: 'CONTACTED' };
+    }
+
+    return { retryDelayHours: null, shouldExhaust: false };
+}
+
+/**
+ * Calculates the next recommended action for an individual lead.
+ */
+export function calculateNextAction(lead: { id: string; priority?: string; nextFollowUp?: unknown }): {
+    actionType: 'FOLLOW_UP' | 'CALL_NEW' | 'REVIEW';
+    urgency: 'CRITICAL' | 'NORMAL' | 'LOW';
+} {
+    const now = Date.now();
+    let followUpTime = 0;
+    if (lead.nextFollowUp) {
+        if (typeof lead.nextFollowUp === 'object' && lead.nextFollowUp !== null && 'toDate' in lead.nextFollowUp) {
+            followUpTime = (lead.nextFollowUp as { toDate(): Date }).toDate().getTime();
+        } else {
+            followUpTime = new Date(lead.nextFollowUp as string | number | Date).getTime();
+        }
+    }
+
+    if (followUpTime > 0 && followUpTime < now) {
+        return { actionType: 'FOLLOW_UP', urgency: 'CRITICAL' };
+    }
+
+    return { actionType: 'CALL_NEW', urgency: lead.priority === 'HIGH' ? 'CRITICAL' : 'NORMAL' };
 }
 
 /**

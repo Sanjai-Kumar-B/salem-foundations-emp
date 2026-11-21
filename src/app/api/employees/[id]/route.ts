@@ -38,7 +38,20 @@ export async function PATCH(
   if (isErrorResponse(session)) return session;
 
   const body = await request.json();
-  const allowedFields = ['name', 'phone', 'role', 'isActive', 'dailyCallTarget'];
+  const allowedFields = [
+    'name',
+    'phone',
+    'role',
+    'isActive',
+    'dailyCallTarget',
+    'dob',
+    'joiningDate',
+    'department',
+    'designation',
+    'alternatePhone',
+    'address',
+    'city',
+  ];
   const updates: Record<string, unknown> = {};
 
   for (const field of allowedFields) {
@@ -62,12 +75,35 @@ export async function DELETE(
   const session = await requireAdmin(request);
   if (isErrorResponse(session)) return session;
 
-  // Soft delete — set isActive: false (preserves history)
-  await adminDb.collection(EMPLOYEES_COL).doc(((await params).id)).update({
-    isActive: false,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
+  const employeeId = (await params).id;
+  const docRef = adminDb.collection(EMPLOYEES_COL).doc(employeeId);
+  const doc = await docRef.get();
 
-  return NextResponse.json({ success: true });
+  if (!doc.exists) {
+    return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
+  }
+
+  // Unassign any leads currently assigned to this employee so they aren't orphaned
+  const leadsSnapshot = await adminDb
+    .collection('leads')
+    .where('assignedEmployeeId', '==', employeeId)
+    .get();
+
+  if (!leadsSnapshot.empty) {
+    const batch = adminDb.batch();
+    leadsSnapshot.docs.forEach((leadDoc) => {
+      batch.update(leadDoc.ref, {
+        assignedEmployeeId: null,
+        assignmentType: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+    await batch.commit();
+  }
+
+  // Delete employee document from collection
+  await docRef.delete();
+
+  return NextResponse.json({ success: true, removed: true });
 }
 

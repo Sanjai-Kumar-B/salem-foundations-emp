@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 // ============ ENUMS & CONSTANTS ============
@@ -41,6 +42,13 @@ export interface Employee {
     updatedAt: Timestamp;
     lastLoginAt?: Timestamp;
     firstCallTimeToday?: Timestamp;
+    dob?: string;
+    joiningDate?: string;
+    department?: string;
+    designation?: string;
+    alternatePhone?: string;
+    address?: string;
+    city?: string;
 }
 
 /**
@@ -92,7 +100,7 @@ export interface Task {
     description?: string;
     notes?: string;        // Optional task notes
     createdAt: Timestamp;
-    updatedAt?: Timestamp; // Tracked in mockFirestore
+    updatedAt?: Timestamp;
     completedAt?: Timestamp;
 }
 
@@ -106,6 +114,7 @@ export interface CallOutcome {
     employeeId: string;
     pipeline: Pipeline;
     connected: boolean;
+    outcome?: StrictCallOutcome | string;
     interestLevel?: InterestLevel;
     readiness?: Readiness;
     nextAction: NextAction;
@@ -170,7 +179,10 @@ export interface WhatsAppTemplate {
     id: string;
     name: string;
     content: string;
+    category?: string;
+    isActive?: boolean;
     createdAt: Timestamp;
+    updatedAt?: Timestamp;
 }
 
 export interface EmployeeFormData {

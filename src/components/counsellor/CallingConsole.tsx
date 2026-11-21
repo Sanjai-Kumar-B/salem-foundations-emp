@@ -30,17 +30,17 @@ interface CallingConsoleProps {
     onNext: () => void;
     onPrev: () => void;
     onClose: () => void;
-    onOutcome?: (outcome: string) => void;
+    onOutcome?: (outcome: string, nextFollowUpDate?: string, notes?: string, duration?: number) => void;
 }
 
 type CallOutcome = 'Interested' | 'Not Interested' | 'No Response' | 'Call Later' | 'Wrong Number';
 type CallState = 'ready' | 'calling' | 'inCall' | 'outcome' | 'scheduling';
 
 const WHATSAPP_TEMPLATES = [
-    { id: 'brochure', label: 'Brochure', emoji: '📄' },
-    { id: 'fees', label: 'Fee Details', emoji: '💰' },
-    { id: 'campus', label: 'Campus Photos', emoji: '📸' },
-    { id: 'apply', label: 'Application Link', emoji: '🎯' },
+    { id: 'brochure', label: 'Brochure', emoji: '📄', text: 'Hello {name}, here is the course brochure & details for {course} at Salem Foundations: https://salemfoundations.edu.in/brochure' },
+    { id: 'fees', label: 'Fee Details', emoji: '💰', text: 'Hello {name}, here is the fee structure and scholarship details for {course}: https://salemfoundations.edu.in/fees' },
+    { id: 'campus', label: 'Campus Photos', emoji: '📸', text: 'Hello {name}, check out photos of our campus, hostel & laboratories: https://salemfoundations.edu.in/campus' },
+    { id: 'apply', label: 'Application Link', emoji: '🎯', text: 'Hello {name}, apply online now for admission into {course}: https://salemfoundations.edu.in/apply' },
 ];
 
 export default function CallingConsole({
@@ -53,6 +53,7 @@ export default function CallingConsole({
     const [callState, setCallState] = useState<CallState>('ready');
     const [callDuration, setCallDuration] = useState(0);
     const [selectedOutcome, setSelectedOutcome] = useState<CallOutcome | null>(null);
+    const [callNotes, setCallNotes] = useState('');
 
     // Live call timer
     useEffect(() => {
@@ -83,22 +84,53 @@ export default function CallingConsole({
         setCallState('outcome');
     };
 
+    const sendWhatsApp = (templateId: string) => {
+        const rawDigits = (lead.phone || '').replace(/\D/g, '');
+        const cleanPhone = rawDigits.startsWith('91') && rawDigits.length === 12 ? rawDigits : `91${rawDigits.slice(-10)}`;
+        const template = WHATSAPP_TEMPLATES.find((t) => t.id === templateId);
+        let msg = template ? template.text : 'Hello from Salem Foundations';
+        msg = msg.replace('{name}', lead.name || 'Student').replace('{course}', lead.course || 'the course');
+        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+    };
+
     const submitOutcome = (outcome: CallOutcome) => {
         setSelectedOutcome(outcome);
-        if (outcome === 'Interested') {
+        if (outcome === 'Interested' || outcome === 'Call Later') {
             setCallState('scheduling');
         } else {
             setCallState('ready');
-            onOutcome?.(outcome);
+            onOutcome?.(outcome, undefined, callNotes, callDuration);
+            setCallNotes('');
             setTimeout(() => {
                 onNext();
             }, 500);
         }
     };
 
-    const scheduleFollowUp = (date: string) => {
-        onOutcome?.(`Interested - Follow-up: ${date}`);
+    const calculateFollowUpDate = (slot: string): string => {
+        const d = new Date();
+        if (slot === 'Today') {
+            d.setHours(d.getHours() + 3);
+        } else if (slot === 'Tomorrow') {
+            d.setDate(d.getDate() + 1);
+            d.setHours(10, 0, 0, 0);
+        } else if (slot === 'This Week') {
+            d.setDate(d.getDate() + 3);
+            d.setHours(11, 0, 0, 0);
+        } else if (slot === 'Next Week') {
+            d.setDate(d.getDate() + 7);
+            d.setHours(10, 0, 0, 0);
+        }
+        return d.toISOString();
+    };
+
+    const scheduleFollowUp = (slot: string) => {
+        const dateIso = calculateFollowUpDate(slot);
+        const outcomeLabel = selectedOutcome || 'Interested';
+        onOutcome?.(outcomeLabel, dateIso, callNotes || `Follow up scheduled: ${slot}`, callDuration);
         setCallState('ready');
+        setCallNotes('');
         setTimeout(() => {
             onNext();
         }, 500);
@@ -114,7 +146,7 @@ export default function CallingConsole({
                         </div>
                     </div>
                     <p className="text-xl font-semibold">Calling...</p>
-                    <p className="text-sm text-white/70">{lead.name}</p>
+                    <p className="text-sm text-white/70" data-testid="calling-lead-name">{lead.name}</p>
                 </div>
                 <button
                     onClick={() => {
@@ -134,7 +166,7 @@ export default function CallingConsole({
                 {/* Header */}
                 <div className="px-4 py-6 text-center border-b border-white/10">
                     <p className="text-sm text-white/70 uppercase tracking-wide">{lead.course}</p>
-                    <h2 className="text-3xl font-bold mt-2">{lead.name}</h2>
+                    <h2 className="text-3xl font-bold mt-2" data-testid="incall-lead-name">{lead.name}</h2>
                     <div className="mt-4 flex justify-center gap-2">
                         <Badge variant="danger" size="sm">ON CALL</Badge>
                     </div>
@@ -143,18 +175,19 @@ export default function CallingConsole({
                 {/* Timer */}
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
-                        <p className="text-6xl font-bold tabular-nums">{formatDuration(callDuration)}</p>
+                        <p className="text-6xl font-bold tabular-nums" data-testid="call-timer">{formatDuration(callDuration)}</p>
                         <p className="text-white/70 text-sm mt-2">Call in progress</p>
                     </div>
                 </div>
 
                 {/* Quick Actions */}
                 <div className="px-4 pb-20 space-y-3">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {WHATSAPP_TEMPLATES.map((template) => (
                             <button
                                 key={template.id}
-                                className="py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs active:scale-95 transition-all"
+                                onClick={() => sendWhatsApp(template.id)}
+                                className="py-3 px-2 rounded-xl bg-white/10 hover:bg-emerald-600/30 text-white font-semibold text-xs active:scale-95 transition-all text-center"
                             >
                                 {template.emoji} {template.label}
                             </button>
@@ -163,7 +196,7 @@ export default function CallingConsole({
 
                     <button
                         onClick={endCall}
-                        className="w-full py-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg active:scale-95 transition-transform"
+                        className="w-full py-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg active:scale-95 transition-transform shadow-lg"
                     >
                         End Call
                     </button>
@@ -174,7 +207,7 @@ export default function CallingConsole({
 
     if (callState === 'outcome') {
         return (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-end">
                 <div className="w-full bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
                     <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-4 flex items-center justify-between rounded-t-3xl">
                         <div>
@@ -224,7 +257,20 @@ export default function CallingConsole({
                             ))}
                         </div>
 
-                        {selectedOutcome && selectedOutcome !== 'Interested' && (
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
+                                Call Notes
+                            </label>
+                            <textarea
+                                value={callNotes}
+                                onChange={(e) => setCallNotes(e.target.value)}
+                                placeholder="Enter notes from the call..."
+                                className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                rows={2}
+                            />
+                        </div>
+
+                        {selectedOutcome && selectedOutcome !== 'Interested' && selectedOutcome !== 'Call Later' && (
                             <button
                                 onClick={() => submitOutcome(selectedOutcome)}
                                 className="w-full py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold active:scale-95 transition-transform"
@@ -240,7 +286,7 @@ export default function CallingConsole({
 
     if (callState === 'scheduling') {
         return (
-            <div className="fixed inset-0 z-50 bg-black/50 flex items-end">
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-end">
                 <div className="w-full bg-white rounded-t-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
                     <div className="sticky top-0 bg-white border-b border-slate-100 px-4 py-4 flex items-center justify-between rounded-t-3xl">
                         <div>
@@ -256,7 +302,7 @@ export default function CallingConsole({
                             <div className="flex gap-2 items-start">
                                 <CheckCircle size={20} className="text-emerald-600 mt-0.5 flex-shrink-0" />
                                 <p className="text-sm text-emerald-800">
-                                    <strong>Lead interested!</strong> Schedule a follow-up to maintain momentum.
+                                    <strong>{selectedOutcome === 'Call Later' ? 'Call back requested' : 'Lead interested!'}</strong> Select when you would like to follow up.
                                 </p>
                             </div>
                         </div>
@@ -266,18 +312,19 @@ export default function CallingConsole({
                                 <button
                                     key={slot}
                                     onClick={() => scheduleFollowUp(slot)}
-                                    className="w-full p-4 rounded-2xl bg-slate-100 hover:bg-blue-100 text-slate-900 font-semibold active:scale-95 transition-all"
+                                    className="w-full p-4 rounded-2xl bg-slate-100 hover:bg-emerald-100 text-slate-900 font-semibold active:scale-95 transition-all text-left flex justify-between items-center"
                                 >
-                                    {slot}
+                                    <span>{slot}</span>
+                                    <span className="text-xs text-slate-500">Schedule</span>
                                 </button>
                             ))}
                         </div>
 
                         <button
-                            onClick={() => scheduleFollowUp('Manual')}
-                            className="w-full py-3 rounded-2xl border border-slate-200 text-slate-700 font-semibold"
+                            onClick={() => scheduleFollowUp('Tomorrow')}
+                            className="w-full py-3 rounded-2xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50"
                         >
-                            Skip Follow-up
+                            Skip & Set Tomorrow Default
                         </button>
                     </div>
                 </div>
@@ -290,10 +337,10 @@ export default function CallingConsole({
         <div className="fixed inset-0 z-50 bg-gradient-to-b from-slate-50 to-blue-50 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="px-4 pt-4 flex items-center justify-between">
-                <button onClick={onPrev} className="p-2 rounded-full hover:bg-white">
+                <button onClick={onPrev} className="p-2 rounded-full hover:bg-white" aria-label="Previous lead">
                     <ChevronLeft size={24} className="text-slate-600" />
                 </button>
-                <button onClick={onClose} className="p-2 rounded-full hover:bg-white">
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-white" aria-label="Close console">
                     <X size={24} className="text-slate-600" />
                 </button>
             </div>
@@ -322,10 +369,10 @@ export default function CallingConsole({
 
                     {/* Lead Name & Phone */}
                     <div className="mb-4">
-                        <h1 className="text-4xl font-bold leading-tight">{lead.name}</h1>
+                        <h1 className="text-4xl font-bold leading-tight" data-testid="lead-name">{lead.name}</h1>
                         <div className="flex items-center gap-2 mt-3 text-white/90">
                             <Phone size={18} />
-                            <p className="text-lg font-semibold">{lead.phone}</p>
+                            <p className="text-lg font-semibold" data-testid="lead-phone">{lead.phone}</p>
                         </div>
                     </div>
 
@@ -375,7 +422,8 @@ export default function CallingConsole({
                         {WHATSAPP_TEMPLATES.map((template) => (
                             <button
                                 key={template.id}
-                                className="flex items-center justify-center gap-2 rounded-2xl bg-white border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50 active:scale-95"
+                                onClick={() => sendWhatsApp(template.id)}
+                                className="flex items-center justify-center gap-2 rounded-2xl bg-white border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-700 shadow-sm hover:bg-emerald-50 active:scale-95 transition-all"
                             >
                                 {template.emoji} {template.label}
                             </button>
@@ -388,6 +436,7 @@ export default function CallingConsole({
             <div className="px-4 pb-6 space-y-3 border-t border-slate-200 bg-white">
                 <button
                     onClick={startCall}
+                    data-testid="start-call-button"
                     className="w-full flex items-center justify-center gap-3 rounded-3xl bg-gradient-to-r from-blue-600 to-violet-600 px-6 py-5 text-lg font-bold text-white shadow-lg hover:shadow-xl active:scale-95 transition-all"
                 >
                     <Phone size={24} />
@@ -403,7 +452,10 @@ export default function CallingConsole({
                         Previous
                     </button>
 
-                    <button className="flex items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 active:scale-95">
+                    <button
+                        onClick={onNext}
+                        className="flex items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 active:scale-95"
+                    >
                         Skip
                     </button>
 

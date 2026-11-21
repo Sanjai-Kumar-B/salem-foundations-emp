@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/shared/Sidebar';
 import { LoadingSpinner } from '@/components/ui';
@@ -12,17 +12,25 @@ export default function AdminLayout({
     children: React.ReactNode;
 }) {
     const router = useRouter();
+    const pathname = usePathname();
     const { user, employee, loading, isAdmin } = useAuth();
 
+    const isLoginPage = pathname === '/admin/login';
+
     useEffect(() => {
+        if (isLoginPage) return;
         if (!loading) {
             if (!user || !employee) {
-                router.push('/login');
+                router.push('/admin/login');
             } else if (!isAdmin) {
                 router.push('/counsellor/dashboard');
             }
         }
-    }, [user, employee, loading, isAdmin, router]);
+    }, [user, employee, loading, isAdmin, router, isLoginPage]);
+
+    if (isLoginPage) {
+        return <>{children}</>;
+    }
 
     if (loading) {
         return (

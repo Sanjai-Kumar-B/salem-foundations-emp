@@ -20,6 +20,7 @@ const COLLECTIONS = {
   tasks: 'tasks',
   callOutcomes: 'call_outcomes',
   activities: 'activities',
+  whatsappTemplates: 'whatsapp_templates',
 };
 
 const DEFAULT_WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
@@ -64,6 +65,13 @@ function mapEmployee(raw: UnknownRecord): Employee {
     updatedAt: toTimestamp(raw.updatedAt),
     lastLoginAt: raw.lastLoginAt ? toTimestamp(raw.lastLoginAt) : undefined,
     firstCallTimeToday: raw.firstCallTimeToday ? toTimestamp(raw.firstCallTimeToday) : undefined,
+    dob: raw.dob ? String(raw.dob) : undefined,
+    joiningDate: raw.joiningDate ? String(raw.joiningDate) : undefined,
+    department: raw.department ? String(raw.department) : undefined,
+    designation: raw.designation ? String(raw.designation) : undefined,
+    alternatePhone: raw.alternatePhone ? String(raw.alternatePhone) : undefined,
+    address: raw.address ? String(raw.address) : undefined,
+    city: raw.city ? String(raw.city) : undefined,
   };
 }
 
@@ -117,7 +125,11 @@ function mapTask(raw: UnknownRecord): Task {
 }
 
 function mapCallOutcome(raw: UnknownRecord): CallOutcome {
-  const connected = Boolean(raw.connected ?? (raw.outcome === 'INTERESTED' || raw.outcome === 'CALL_LATER'));
+  const connected = Boolean(
+    raw.connected !== undefined
+      ? raw.connected
+      : ['INTERESTED', 'CALL_LATER', 'NOT_INTERESTED', 'CONVERTED'].includes(String(raw.outcome ?? ''))
+  );
   return {
     id: String(raw.id ?? ''),
     leadId: String(raw.leadId ?? ''),
@@ -211,8 +223,48 @@ export async function getLeadActivities(leadId: string): Promise<LeadActivity[]>
   });
 }
 
-export async function getAllWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
-  return DEFAULT_WHATSAPP_TEMPLATES;
+function mapWhatsAppTemplate(raw: UnknownRecord): WhatsAppTemplate {
+  return {
+    id: String(raw.id ?? ''),
+    name: String(raw.name ?? ''),
+    content: String(raw.content ?? ''),
+    category: raw.category ? String(raw.category) : undefined,
+    isActive: raw.isActive !== undefined ? Boolean(raw.isActive) : true,
+    createdAt: toTimestamp(raw.createdAt),
+    updatedAt: raw.updatedAt ? toTimestamp(raw.updatedAt) : undefined,
+  };
+}
+
+export async function getAllWhatsAppTemplates(activeOnly = false): Promise<WhatsAppTemplate[]> {
+  try {
+    const query = activeOnly ? '?activeOnly=true' : '';
+    const response = await apiGet<{ templates: UnknownRecord[] }>(`/api/whatsapp-templates${query}`);
+    return (response.templates ?? []).map((item) => mapWhatsAppTemplate(item));
+  } catch (error) {
+    console.error('Failed to fetch WhatsApp templates', error);
+    return DEFAULT_WHATSAPP_TEMPLATES;
+  }
+}
+
+export async function createWhatsAppTemplate(data: {
+  name: string;
+  content: string;
+  category?: string;
+  isActive?: boolean;
+}): Promise<string> {
+  const response = await apiPost<{ id: string }>('/api/whatsapp-templates', data);
+  return response.id;
+}
+
+export async function updateWhatsAppTemplate(
+  id: string,
+  updates: Partial<WhatsAppTemplate>
+): Promise<void> {
+  await apiPatch(`/api/whatsapp-templates/${id}`, updates);
+}
+
+export async function deleteWhatsAppTemplate(id: string): Promise<void> {
+  await apiDelete<{ success: boolean }>(`/api/whatsapp-templates/${id}`);
 }
 
 export async function recordCallOutcome(
@@ -280,13 +332,32 @@ export async function createEmployee(data: {
   phone: string;
   role: Employee['role'];
   dailyCallTarget?: number;
+  dob?: string;
+  joiningDate?: string;
+  department?: string;
+  designation?: string;
+  alternatePhone?: string;
+  address?: string;
+  city?: string;
 }): Promise<string> {
   const response = await apiPost<{ id: string }>('/api/employees', data);
   return response.id;
 }
 
+export async function updateEmployee(id: string, updates: Partial<Employee>): Promise<void> {
+  await apiPatch('/api/employees/' + id, updates);
+}
+
+export async function activateEmployee(id: string): Promise<void> {
+  await apiPatch('/api/employees/' + id, { isActive: true });
+}
+
 export async function deactivateEmployee(id: string): Promise<void> {
   await apiPatch('/api/employees/' + id, { isActive: false });
+}
+
+export async function deleteEmployee(id: string): Promise<void> {
+  await apiDelete<{ success: boolean }>('/api/employees/' + id);
 }
 
 export async function createLead(data: Partial<Lead> & { name: string; mobile: string; source: Lead['source'] }): Promise<string> {
@@ -296,6 +367,14 @@ export async function createLead(data: Partial<Lead> & { name: string; mobile: s
     email: data.email,
     source: data.source,
     priority: data.priority ?? 'MEDIUM',
+    fatherName: data.fatherName,
+    course: data.course,
+    district: data.district,
+    location: data.location,
+    school: data.school,
+    gender: data.gender,
+    applicationNumber: data.applicationNumber,
+    notes: data.notes,
   });
   return response.id;
 }

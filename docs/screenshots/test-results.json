@@ -1,0 +1,267 @@
+[
+  {
+    "page": "Login Page",
+    "url": "http://localhost:3000/login",
+    "screenshot": "01-login-page.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Form fields: email=✅, password=✅, submit=✅"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/login"
+  },
+  {
+    "page": "Admin Login",
+    "url": "http://localhost:3000/login",
+    "screenshot": "02-admin-login-result.png",
+    "status": "⚠️ Login may have failed",
+    "notes": [
+      "Stayed at: http://localhost:3000/login"
+    ],
+    "errors": []
+  },
+  {
+    "page": "Admin Dashboard",
+    "url": "http://localhost:3000/admin/dashboard",
+    "screenshot": "03-admin-dashboard.png",
+    "status": "❌ Error",
+    "notes": [],
+    "errors": [
+      "page.goto: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3000/admin/dashboard\", waiting until \"networkidle\"\u001b[22m\n"
+    ]
+  },
+  {
+    "page": "Lead Import Modal",
+    "url": "http://localhost:3000/admin/leads",
+    "screenshot": "05-admin-leads-import-modal.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Modal opened from Import button click"
+    ],
+    "errors": []
+  },
+  {
+    "page": "Admin Leads Management",
+    "url": "http://localhost:3000/admin/leads",
+    "screenshot": "04-admin-leads.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Table rows/lead items: 5",
+      "Search bar: ✅ Present",
+      "Import/Upload button: ✅ Present",
+      "Import modal: ✅ Opens successfully"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/admin/leads"
+  },
+  {
+    "page": "Admin Lead Assignments",
+    "url": "http://localhost:3000/admin/assignments",
+    "screenshot": "06-admin-assignments.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"Counsellor Workload\"",
+      "Dropdown selectors: 0",
+      "Assignment action buttons: 2"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/admin/assignments"
+  },
+  {
+    "page": "Admin Employee Management",
+    "url": "http://localhost:3000/admin/employees",
+    "screenshot": "07-admin-employees.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Employee list items: 4",
+      "Add Employee button: ✅ Present"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/admin/employees"
+  },
+  {
+    "page": "Admin Analytics & Reports",
+    "url": "http://localhost:3000/admin/analytics",
+    "screenshot": "08-admin-analytics.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"Funnel\"",
+      "Charts/metric elements: 13"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/admin/analytics"
+  },
+  {
+    "page": "Counsellor Login",
+    "url": "http://localhost:3000/login",
+    "screenshot": "09-counsellor-login-result.png",
+    "status": "✅ Login Successful",
+    "notes": [
+      "Redirected to: http://localhost:3000/counsellor/dashboard"
+    ],
+    "errors": []
+  },
+  {
+    "page": "Counsellor Dashboard",
+    "url": "http://localhost:3000/counsellor/dashboard",
+    "screenshot": "10-counsellor-dashboard.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"Next Best Action\"",
+      "Target/progress indicators: 4"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/dashboard"
+  },
+  {
+    "page": "Counsellor Workspace (Calling)",
+    "url": "http://localhost:3000/counsellor/workspace",
+    "screenshot": "11-counsellor-workspace.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"All Caught Up!\"",
+      "Call action buttons: 0",
+      "Lead/contact cards: 0"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/workspace"
+  },
+  {
+    "page": "Counsellor Today's Calls",
+    "url": "http://localhost:3000/counsellor/todays-calls",
+    "screenshot": "12-counsellor-todays-calls.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Page heading: \"Employee Management\"",
+      "Call/task items: 0"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/todays-calls"
+  },
+  {
+    "page": "Counsellor Follow-ups",
+    "url": "http://localhost:3000/counsellor/follow-ups",
+    "screenshot": "13-counsellor-follow-ups.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/counsellor/todays-calls",
+      "Page heading: \"Employee Management\"",
+      "Follow-up items: 0"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/todays-calls"
+  },
+  {
+    "page": "Counsellor New Leads",
+    "url": "http://localhost:3000/counsellor/new-leads",
+    "screenshot": "14-counsellor-new-leads.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/counsellor/workspace",
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"All Caught Up!\"",
+      "New lead items: 0"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/workspace"
+  },
+  {
+    "page": "RBAC: Counsellor → Admin Dashboard",
+    "url": "http://localhost:3000/admin/dashboard",
+    "screenshot": "15-rbac-counsellor-admin-access.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/counsellor/dashboard",
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"Next Best Action\"",
+      "✅ SECURITY: Counsellor was redirected/blocked from admin page"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/dashboard"
+  },
+  {
+    "page": "RBAC: Counsellor → Admin Employees",
+    "url": "http://localhost:3000/admin/employees",
+    "screenshot": "16-rbac-counsellor-employees-access.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/counsellor/dashboard",
+      "Page heading: \"Employee Management\"",
+      "Sub-heading: \"Next Best Action\"",
+      "✅ SECURITY: Counsellor was redirected/blocked from admin employees page"
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/counsellor/dashboard"
+  },
+  {
+    "page": "Staff Landing Page",
+    "url": "http://localhost:3000/staff",
+    "screenshot": "17-staff-page.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/login",
+      "Page heading: \"Employee Management\""
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/login"
+  },
+  {
+    "page": "Staff Portal",
+    "url": "http://localhost:3000/staff-portal",
+    "screenshot": "18-staff-portal.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/login",
+      "Page heading: \"Employee Management\""
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/login"
+  },
+  {
+    "page": "Staff Login Page",
+    "url": "http://localhost:3000/staff/login",
+    "screenshot": "19-staff-login.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/login",
+      "Page heading: \"Employee Management\""
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/login"
+  },
+  {
+    "page": "Staff Portal Login Page",
+    "url": "http://localhost:3000/staff-portal/login",
+    "screenshot": "20-staff-portal-login.png",
+    "status": "✅ Loaded",
+    "notes": [
+      "Redirected to: http://localhost:3000/login",
+      "Page heading: \"Employee Management\""
+    ],
+    "errors": [],
+    "httpStatus": 200,
+    "actualUrl": "http://localhost:3000/login"
+  }
+]

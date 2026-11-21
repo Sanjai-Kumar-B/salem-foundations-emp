@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { DashboardLayout } from '@/components/shared/Sidebar';
+import { CounsellorLayoutContainer } from '@/components/counsellor/CounsellorNav';
 import { LoadingSpinner } from '@/components/ui';
 
 export default function CounsellorLayout({
@@ -26,7 +26,7 @@ export default function CounsellorLayout({
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
                 <LoadingSpinner size="lg" />
             </div>
         );
@@ -36,5 +36,5 @@ export default function CounsellorLayout({
         return null;
     }
 
-    return <DashboardLayout role="COUNSELLOR">{children}</DashboardLayout>;
+    return <CounsellorLayoutContainer>{children}</CounsellorLayoutContainer>;
 }

@@ -1,14 +1,15 @@
 /**
- * Unified Firestore Service
- * 
- * Automatically switches between mock and real Firestore
- * based on the USE_MOCK_DATA config flag
+ * Firestore Service Layer
+ * Connects directly to Cloud Firestore
  */
 
 export {
     getAllEmployees,
     createEmployee,
+    updateEmployee,
+    activateEmployee,
     deactivateEmployee,
+    deleteEmployee,
     getLeadsByEmployee,
     getAllLeads,
     createLead,
@@ -24,5 +25,8 @@ export {
     getEmployeeStats,
     getEmployeePerformanceMetrics,
     getAllWhatsAppTemplates,
+    createWhatsAppTemplate,
+    updateWhatsAppTemplate,
+    deleteWhatsAppTemplate,
     COLLECTIONS,
 } from './realFirestore';

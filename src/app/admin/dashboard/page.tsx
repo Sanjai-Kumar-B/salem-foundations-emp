@@ -186,8 +186,8 @@ export default function AdminDashboardPage() {
       <div className="mx-auto max-w-[1400px] space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Mission Control</h1>
-            <p className="text-sm text-gray-500">Live operational snapshot from Firebase data.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-sm text-gray-500">Overview of admissions, lead allocations, and employee performance.</p>
           </div>
           <div className="grid w-full grid-cols-2 gap-3 md:flex md:w-auto">
             <Button variant="outline" onClick={() => router.push('/admin/leads')}>
@@ -197,7 +197,7 @@ export default function AdminDashboardPage() {
               <Users className="mr-2 h-4 w-4" /> Assign
             </Button>
             <Button variant="outline" onClick={() => router.push('/admin/employees')}>
-              <Users className="mr-2 h-4 w-4" /> Staff
+              <Users className="mr-2 h-4 w-4" /> Employee
             </Button>
             <Button onClick={() => router.push('/admin/analytics')}>
               <BarChart className="mr-2 h-4 w-4" /> Analytics
@@ -227,7 +227,7 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2" padding="none">
             <div className="border-b border-gray-100 p-4">
-              <h2 className="text-lg font-semibold text-gray-900">Priority Work Queue</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Priority Queue</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -269,7 +269,7 @@ export default function AdminDashboardPage() {
 
           <div className="space-y-6">
             <Card>
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Live Activity</h2>
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Activity</h2>
               <div className="space-y-3">
                 {recentActivity.length === 0 && <p className="text-sm text-gray-500">No recent call activity.</p>}
                 {recentActivity.map((item) => (
@@ -284,7 +284,7 @@ export default function AdminDashboardPage() {
             </Card>
 
             <Card>
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Team Progress</h2>
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Employee Performance</h2>
               <div className="space-y-4">
                 {teamRows.slice(0, 5).map((row) => (
                   <div key={row.id}>
@@ -316,7 +316,7 @@ export default function AdminDashboardPage() {
           <Card className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-amber-600" />
             <div>
-              <p className="text-xs uppercase tracking-wide text-gray-500">Queue Pressure</p>
+              <p className="text-xs uppercase tracking-wide text-gray-500">Action Items</p>
               <p className="text-lg font-semibold text-gray-900">{queueRows.length}</p>
             </div>
           </Card>

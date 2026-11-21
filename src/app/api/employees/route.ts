@@ -27,7 +27,13 @@ export async function GET(request: NextRequest) {
 
     const snapshot = await query.get();
     const employees = snapshot.docs
-      .map((doc: FirebaseFirestore.QueryDocumentSnapshot): Record<string, unknown> => ({ id: doc.id, ...doc.data() }))
+      .map((doc: FirebaseFirestore.QueryDocumentSnapshot): Record<string, unknown> => {
+        const data = doc.data();
+        if (session.role === 'COUNSELLOR' && doc.id !== session.uid) {
+          return { id: doc.id, name: data.name, role: data.role };
+        }
+        return { id: doc.id, ...data };
+      })
       .sort((a, b) => String(a['name'] ?? '').localeCompare(String(b['name'] ?? '')));
 
     return NextResponse.json({ employees });
@@ -43,13 +49,34 @@ export async function POST(request: NextRequest) {
   if (isErrorResponse(session)) return session;
 
   const body = await request.json();
-  const { email, password, name, phone, role, dailyCallTarget } = body as {
+  const {
+    email,
+    password,
+    name,
+    phone,
+    role,
+    dailyCallTarget,
+    dob,
+    joiningDate,
+    department,
+    designation,
+    alternatePhone,
+    address,
+    city,
+  } = body as {
     email: string;
     password: string;
     name: string;
     phone: string;
     role: 'ADMIN' | 'COUNSELLOR';
     dailyCallTarget?: number;
+    dob?: string;
+    joiningDate?: string;
+    department?: string;
+    designation?: string;
+    alternatePhone?: string;
+    address?: string;
+    city?: string;
   };
 
   if (!email || !password || !name || !phone || !role) {
@@ -71,16 +98,24 @@ export async function POST(request: NextRequest) {
 
   // Create Firestore document
   const now = FieldValue.serverTimestamp();
-  const employeeData: Omit<Employee, 'id'> = {
+  const employeeData: Record<string, unknown> = {
     email,
     name,
     phone,
     role,
     isActive: true,
     dailyCallTarget: dailyCallTarget ?? 30,
-    createdAt: now as Employee['createdAt'],
-    updatedAt: now as Employee['updatedAt'],
+    createdAt: now,
+    updatedAt: now,
   };
+
+  if (dob) employeeData.dob = dob;
+  if (joiningDate) employeeData.joiningDate = joiningDate;
+  if (department) employeeData.department = department;
+  if (designation) employeeData.designation = designation;
+  if (alternatePhone) employeeData.alternatePhone = alternatePhone;
+  if (address) employeeData.address = address;
+  if (city) employeeData.city = city;
 
   await adminDb.collection(EMPLOYEES_COL).doc(userRecord.uid).set(employeeData);
 

@@ -54,15 +54,31 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, mobile, email, source, priority, pipeline } = body;
+  const {
+    name,
+    mobile,
+    email,
+    source,
+    priority,
+    pipeline,
+    fatherName,
+    course,
+    district,
+    location,
+    school,
+    gender,
+    applicationNumber,
+    notes,
+  } = body;
 
   if (!name || !mobile || !source) {
     return NextResponse.json({ error: 'name, mobile, source are required' }, { status: 400 });
   }
 
-  const normalizedMobile = String(mobile).replace(/\D/g, '').slice(-10);
-  if (!normalizedMobile) {
-    return NextResponse.json({ error: 'Invalid mobile number' }, { status: 400 });
+  const digits = String(mobile).replace(/\D/g, '');
+  const normalizedMobile = digits.slice(-10);
+  if (normalizedMobile.length !== 10) {
+    return NextResponse.json({ error: 'Invalid mobile number. Must contain 10 digits.' }, { status: 400 });
   }
 
   // Duplicate check by mobile
@@ -73,20 +89,25 @@ export async function POST(request: NextRequest) {
     .get();
 
   if (!existing.empty) {
+    const existingData = existing.docs[0].data();
     return NextResponse.json(
-      { error: 'Duplicate lead: a lead with this mobile number already exists', existing: true },
+      {
+        error: `Duplicate lead: a lead with mobile ${normalizedMobile} already exists (${existingData.name ?? 'Existing Lead'}).`,
+        existing: true,
+        existingLead: { id: existing.docs[0].id, name: existingData.name, mobile: existingData.mobile },
+      },
       { status: 409 }
     );
   }
 
   const now = FieldValue.serverTimestamp();
-  const leadData = {
-    name,
+  const leadData: Record<string, unknown> = {
+    name: String(name).trim(),
     mobile: normalizedMobile,
-    email: email ?? null,
+    email: email ? String(email).trim() : null,
     source,
     priority: priority ?? 'MEDIUM',
-    pipeline: pipeline ?? 'BULK',
+    pipeline: pipeline ?? (source === 'APPLICATION' ? 'FOLLOW_UP' : 'BULK'),
     status: 'NEW',
     currentStage: 'NEW',
     assignedEmployeeId: null,
@@ -94,6 +115,15 @@ export async function POST(request: NextRequest) {
     createdAt: now,
     updatedAt: now,
   };
+
+  if (fatherName) leadData.fatherName = String(fatherName).trim();
+  if (course) leadData.course = String(course).trim();
+  if (district) leadData.district = String(district).trim();
+  if (location) leadData.location = String(location).trim();
+  if (school) leadData.school = String(school).trim();
+  if (gender) leadData.gender = String(gender).trim();
+  if (applicationNumber) leadData.applicationNumber = String(applicationNumber).trim();
+  if (notes) leadData.notes = String(notes).trim();
 
   const ref = await adminDb.collection(LEADS_COL).add(leadData);
   return NextResponse.json({ id: ref.id, ...leadData }, { status: 201 });
