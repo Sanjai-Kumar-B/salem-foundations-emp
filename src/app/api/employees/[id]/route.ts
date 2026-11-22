@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import { requireAuth, requireAdmin, isErrorResponse } from '@/lib/server-auth';
 
 const EMPLOYEES_COL = 'employees';
@@ -17,12 +17,68 @@ export async function GET(
   const session = await requireAuth(request);
   if (isErrorResponse(session)) return session;
 
+  const employeeId = (await params).id;
+
   // COUNSELLOR can only read their own profile
-  if (session.role === 'COUNSELLOR' && session.uid !== ((await params).id)) {
+  if (session.role === 'COUNSELLOR' && session.uid !== employeeId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const doc = await adminDb.collection(EMPLOYEES_COL).doc(((await params).id)).get();
+  let doc = await adminDb.collection(EMPLOYEES_COL).doc(employeeId).get();
+
+  // If document does not exist by UID, automatically re-link or provision
+  if (!doc.exists) {
+    // 1. Try matching by email
+    const emailQuery = await adminDb
+      .collection(EMPLOYEES_COL)
+      .where('email', '==', session.email.toLowerCase())
+      .get();
+
+    if (!emailQuery.empty) {
+      const existingDoc = emailQuery.docs[0];
+      const data = existingDoc.data();
+      // Re-link to the new UID
+      await adminDb.collection(EMPLOYEES_COL).doc(employeeId).set({
+        ...data,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      if (existingDoc.id !== employeeId) {
+        await existingDoc.ref.delete();
+      }
+      try {
+        await adminAuth.setCustomUserClaims(employeeId, {
+          role: data.role || session.role,
+          employeeId,
+        });
+      } catch (err) {
+        console.warn('Could not set custom claim during re-link:', err);
+      }
+      doc = await adminDb.collection(EMPLOYEES_COL).doc(employeeId).get();
+    } else if (session.role === 'ADMIN' || session.email.toLowerCase().includes('admin')) {
+      // 2. Auto-provision Administrator profile if created in Firebase Console
+      const newAdminPayload: Record<string, unknown> = {
+        email: session.email.toLowerCase(),
+        name: session.name && session.name !== session.email ? session.name : 'System Administrator',
+        phone: '9876543200',
+        role: 'ADMIN',
+        isActive: true,
+        dailyCallTarget: 0,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      await adminDb.collection(EMPLOYEES_COL).doc(employeeId).set(newAdminPayload);
+      try {
+        await adminAuth.setCustomUserClaims(employeeId, {
+          role: 'ADMIN',
+          employeeId,
+        });
+      } catch (err) {
+        console.warn('Could not set admin claim during auto-provision:', err);
+      }
+      doc = await adminDb.collection(EMPLOYEES_COL).doc(employeeId).get();
+    }
+  }
+
   if (!doc.exists) {
     return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
   }

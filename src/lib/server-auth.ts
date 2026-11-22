@@ -42,12 +42,31 @@ export async function verifyEmployeeToken(
 
   try {
     const decoded = await adminAuth.verifyIdToken(idToken);
+    let role = (decoded.role as UserRole) || undefined;
+
+    // Auto-detect admin role if created manually in Firebase Console
+    if (!role) {
+      if (decoded.email && (decoded.email.toLowerCase().includes('admin') || decoded.email.toLowerCase().startsWith('admin@'))) {
+        role = 'ADMIN';
+        try {
+          await adminAuth.setCustomUserClaims(decoded.uid, {
+            role: 'ADMIN',
+            employeeId: decoded.uid,
+          });
+        } catch {
+          // Non-blocking if claim write fails
+        }
+      } else {
+        role = 'COUNSELLOR';
+      }
+    }
+
     return {
       uid: decoded.uid,
       email: decoded.email ?? '',
       name: decoded.name ?? decoded.email ?? '',
-      role: (decoded.role as UserRole) ?? 'COUNSELLOR',
-      employeeId: decoded.employeeId as string | undefined,
+      role: role || 'COUNSELLOR',
+      employeeId: (decoded.employeeId as string | undefined) ?? decoded.uid,
     };
   } catch {
     return null;
